@@ -48,6 +48,56 @@ describe('getQrMatrix', () => {
     const allBool = matrix.every((row) => row.every((v) => typeof v === 'boolean'));
     expect(allBool).toBe(true);
   });
+
+  it('top-left finder pattern is intact (7×7, outer ring + center square)', () => {
+    // A valid QR must have 3 undisturbed finder patterns; scanners anchor on
+    // them. Timing and format bits must not overwrite any of the 7×7 region.
+    const m = getQrMatrix('https://example.com/verify/abc');
+    const expected = [
+      [1, 1, 1, 1, 1, 1, 1],
+      [1, 0, 0, 0, 0, 0, 1],
+      [1, 0, 1, 1, 1, 0, 1],
+      [1, 0, 1, 1, 1, 0, 1],
+      [1, 0, 1, 1, 1, 0, 1],
+      [1, 0, 0, 0, 0, 0, 1],
+      [1, 1, 1, 1, 1, 1, 1],
+    ];
+    for (let r = 0; r < 7; r++) {
+      for (let c = 0; c < 7; c++) {
+        expect(m[r][c]).toBe(expected[r][c] === 1);
+      }
+    }
+  });
+
+  it('top-right and bottom-left finder patterns are intact', () => {
+    const m = getQrMatrix('https://example.com/verify/abc');
+    const n = m.length;
+    const expected = [
+      [1, 1, 1, 1, 1, 1, 1],
+      [1, 0, 0, 0, 0, 0, 1],
+      [1, 0, 1, 1, 1, 0, 1],
+      [1, 0, 1, 1, 1, 0, 1],
+      [1, 0, 1, 1, 1, 0, 1],
+      [1, 0, 0, 0, 0, 0, 1],
+      [1, 1, 1, 1, 1, 1, 1],
+    ];
+    for (let r = 0; r < 7; r++) {
+      for (let c = 0; c < 7; c++) {
+        expect(m[r][n - 7 + c]).toBe(expected[r][c] === 1);
+        expect(m[n - 7 + r][c]).toBe(expected[r][c] === 1);
+      }
+    }
+  });
+
+  it('timing pattern occupies row 6 / col 6 only between finders', () => {
+    const m = getQrMatrix('https://example.com/verify/abc');
+    const n = m.length;
+    // Between-finders region [8, n-8)
+    for (let i = 8; i < n - 8; i++) {
+      expect(m[6][i]).toBe(i % 2 === 0);
+      expect(m[i][6]).toBe(i % 2 === 0);
+    }
+  });
 });
 
 describe('matrixToSvg', () => {

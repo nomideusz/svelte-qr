@@ -238,8 +238,10 @@ function drawFunctionPatterns(matrix: boolean[][], isFunc: boolean[][], version:
   drawFinderPattern(matrix, isFunc, 0, size - 7);
   drawFinderPattern(matrix, isFunc, size - 7, 0);
 
-  // Timing patterns
-  for (let i = 0; i < size; i++) {
+  // Timing patterns: run between the finders only (cols/rows 8 to size-9).
+  // Writing over the full width would clobber the finder patterns' row 6 and
+  // column 6, producing a matrix that isn't a valid QR.
+  for (let i = 8; i < size - 8; i++) {
     setModule(matrix, isFunc, 6, i, i % 2 === 0);
     setModule(matrix, isFunc, i, 6, i % 2 === 0);
   }

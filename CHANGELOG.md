@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2 — 2026-04-23
+
+### Fixed
+- **QR codes now actually encode correctly** — the timing-pattern loop iterated across the full width of the matrix, overwriting the finder patterns' row 6 and column 6. The corrupted finders meant scanners couldn't anchor on the code at all, so generated QRs failed to decode even at high render quality. The loop now runs from index 8 to `size - 9` as the spec requires, leaving the three 7×7 finder patterns untouched.
+- Added three regression tests that assert the full 7×7 structure of all three finder patterns and that the timing pattern stays in the between-finders region.
+
+> **Upgrade from 0.1.0 / 0.1.1.** Both earlier versions produced corrupt QR matrices and should not be used.
+
 ## 0.1.1 — 2026-04-23
 
 ### Fixed
