@@ -1,6 +1,6 @@
 {
   "name": "@nomideusz/svelte-qr",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Zero-dependency QR code generation for Svelte 5 — pure TypeScript encoder, SVG output.",
   "type": "module",
   "license": "MIT",

@@ -127,22 +127,21 @@ describe('matrixToSvg', () => {
     expect(svg).toContain('height="128"');
   });
 
-  it('renders modules at integer coords (no sub-pixel gaps)', () => {
-    // Every rect's x, y, width, height must be integers so adjacent modules
-    // stay flush under shape-rendering="crispEdges" at any SVG size. This is
-    // what lets scanners read the QR reliably.
+  it('emits dark modules as a single merged path (no per-module rects)', () => {
+    // Adjacent <rect> elements at crispEdges can leave sub-pixel gaps when
+    // size isn't an integer multiple of modules, corrupting the finder
+    // patterns' solid rings. A single <path> with horizontal-run subpaths
+    // renders atomically so modules stay flush at any size.
     const matrix = getQrMatrix('test');
-    const svg = matrixToSvg(matrix, { size: 256, padding: 4 });
-    const rectRe = /<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)"\/>/g;
-    let m: RegExpExecArray | null;
-    let checked = 0;
-    while ((m = rectRe.exec(svg)) !== null) {
-      for (let i = 1; i <= 4; i++) {
-        expect(Number.isInteger(Number(m[i]))).toBe(true);
-      }
-      checked++;
-    }
-    expect(checked).toBeGreaterThan(0);
+    const svg = matrixToSvg(matrix);
+    // Exactly one path for foreground modules + one bg <rect>.
+    expect(svg.match(/<path /g)?.length).toBe(1);
+    expect(svg.match(/<rect /g)?.length).toBe(1); // background only
+    // Path coordinates must be integers.
+    const d = /<path d="([^"]+)"/.exec(svg)?.[1] ?? '';
+    const coords = d.match(/-?\d+(?:\.\d+)?/g) ?? [];
+    expect(coords.length).toBeGreaterThan(0);
+    for (const v of coords) expect(Number.isInteger(Number(v))).toBe(true);
   });
 
   it('viewBox spans module units, not pixels', () => {

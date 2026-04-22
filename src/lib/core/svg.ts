@@ -11,25 +11,29 @@ export function matrixToSvg(matrix: QrMatrix, options: QrOptions = {}): string {
   const modules = matrix.length;
   const total   = modules + padding * 2;
 
-  // Render in module-space: each rect is a 1×1 unit at integer coords, and
-  // the viewBox spans `total` units. SVG scales the whole thing to `size` px.
-  // Integer coordinates guarantee modules stay pixel-aligned at any render
-  // size so scanners never see sub-pixel gaps between adjacent dark modules.
-  const rects: string[] = [];
+  // Render all dark modules as a single <path> made of horizontal-run
+  // subpaths. Emitting one rect per module and relying on crispEdges +
+  // per-rect rounding leaves sub-pixel gaps between adjacent modules when
+  // size/total isn't an integer (e.g. 256/37), which breaks scanning by
+  // corrupting the finder patterns' solid outer rings. A single path draws
+  // atomically and keeps modules flush at any size.
+  let d = '';
   for (let r = 0; r < modules; r++) {
-    for (let c = 0; c < modules; c++) {
-      if (matrix[r][c]) {
-        rects.push(`<rect x="${c + padding}" y="${r + padding}" width="1" height="1"/>`);
-      }
+    let c = 0;
+    while (c < modules) {
+      if (!matrix[r][c]) { c++; continue; }
+      let end = c + 1;
+      while (end < modules && matrix[r][end]) end++;
+      const width = end - c;
+      d += `M${c + padding} ${r + padding}h${width}v1h-${width}z`;
+      c = end;
     }
   }
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" width="${size}" height="${size}" shape-rendering="crispEdges">`,
     `<rect width="${total}" height="${total}" fill="${background}"/>`,
-    `<g fill="${foreground}">`,
-    ...rects,
-    `</g>`,
+    `<path d="${d}" fill="${foreground}"/>`,
     `</svg>`,
   ].join('\n');
 }

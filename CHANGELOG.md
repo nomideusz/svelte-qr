@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3 — 2026-04-23
+
+### Fixed
+- **QR codes now render without sub-pixel gaps** — even with integer SVG coords and a module-space viewBox, emitting one `<rect>` per dark module plus `shape-rendering="crispEdges"` left hairline gaps between adjacent modules when the size wasn't an integer multiple of `modules + 2 × padding` (e.g. 256/37). The gaps broke the finder patterns' solid outer rings, which QR scanners use to anchor on the code, so scans failed visually.
+- **Fix**: emit all dark modules as a single `<path>` built from horizontal-run subpaths. Adjacent cells in the same row merge into one wider rectangle at the path level, and the whole foreground renders atomically. Modules stay flush at any render size.
+- Also smaller output: the generated SVG is typically 30–40% smaller since horizontal runs in the finder patterns, timing bars, and data blocks collapse into single subpaths.
+
 ## 0.1.2 — 2026-04-23
 
 ### Fixed
