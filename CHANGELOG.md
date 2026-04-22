@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1 — 2026-04-23
+
+### Fixed
+- **QR codes now scan reliably** — `matrixToSvg()` previously rendered modules at fractional pixel coordinates (e.g. `x="27.68" width="6.92"`) in a pixel-space viewBox. Combined with `shape-rendering="crispEdges"`, adjacent modules could snap to non-adjacent pixels, leaving sub-pixel gaps that caused many scanners (phone cameras, especially) to fail to read the code.
+- **Fix**: render in module-space. The viewBox now spans `modules + 2 × padding` units and each rect is a 1×1 square at integer coordinates. The SVG's `width`/`height` attributes scale the whole thing to the requested pixel size. Modules stay flush at any render size, any DPR.
+- Added two tests enforcing integer coordinates and the module-space viewBox so this can't regress.
+
 ## 0.1.0 — 2026-04-23
 
 Initial public release.

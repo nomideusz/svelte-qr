@@ -76,4 +76,29 @@ describe('matrixToSvg', () => {
     expect(svg).toContain('width="128"');
     expect(svg).toContain('height="128"');
   });
+
+  it('renders modules at integer coords (no sub-pixel gaps)', () => {
+    // Every rect's x, y, width, height must be integers so adjacent modules
+    // stay flush under shape-rendering="crispEdges" at any SVG size. This is
+    // what lets scanners read the QR reliably.
+    const matrix = getQrMatrix('test');
+    const svg = matrixToSvg(matrix, { size: 256, padding: 4 });
+    const rectRe = /<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)"\/>/g;
+    let m: RegExpExecArray | null;
+    let checked = 0;
+    while ((m = rectRe.exec(svg)) !== null) {
+      for (let i = 1; i <= 4; i++) {
+        expect(Number.isInteger(Number(m[i]))).toBe(true);
+      }
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it('viewBox spans module units, not pixels', () => {
+    const matrix = getQrMatrix('hi', { errorCorrection: 'L' }); // v1 → 21 modules
+    const svg = matrixToSvg(matrix, { size: 256, padding: 4 });
+    // 21 modules + 2*4 padding = 29 units
+    expect(svg).toContain('viewBox="0 0 29 29"');
+  });
 });
