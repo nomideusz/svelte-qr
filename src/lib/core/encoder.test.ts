@@ -1,6 +1,32 @@
 import { describe, it, expect } from 'vitest';
+import jsQR from 'jsqr';
 import { getQrMatrix } from './encoder.js';
 import { matrixToSvg } from './svg.js';
+
+function decodeMatrix(matrix: boolean[][]): string | null {
+  const scale = 8;
+  const padding = 4;
+  const modules = matrix.length + padding * 2;
+  const size = modules * scale;
+  const pixels = new Uint8ClampedArray(size * size * 4);
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const row = Math.floor(y / scale) - padding;
+      const col = Math.floor(x / scale) - padding;
+      const dark =
+        row >= 0 && row < matrix.length && col >= 0 && col < matrix.length ? matrix[row][col] : false;
+      const value = dark ? 0 : 255;
+      const index = (y * size + x) * 4;
+      pixels[index] = value;
+      pixels[index + 1] = value;
+      pixels[index + 2] = value;
+      pixels[index + 3] = 255;
+    }
+  }
+
+  return jsQR(pixels, size, size)?.data ?? null;
+}
 
 describe('getQrMatrix', () => {
   it('returns a square matrix', () => {
@@ -36,6 +62,18 @@ describe('getQrMatrix', () => {
 
   it('handles unicode (UTF-8 byte mode)', () => {
     expect(() => getQrMatrix('Zażółć gęślą jaźń')).not.toThrow();
+  });
+
+  it('produces decodable QR codes for representative payloads', () => {
+    const samples = [
+      ['Hi', 'L'],
+      ['https://thebest.travel/verify/BK-ABCD1234', 'M'],
+      ['Zażółć gęślą jaźń', 'M'],
+    ] as const;
+
+    for (const [data, errorCorrection] of samples) {
+      expect(decodeMatrix(getQrMatrix(data, { errorCorrection }))).toBe(data);
+    }
   });
 
   it('throws for data exceeding max capacity', () => {

@@ -28,17 +28,20 @@ function gfMul(a: number, b: number): number {
 // ---------------------------------------------------------------------------
 
 function rsDivisor(degree: number): Uint8Array {
-  const r = new Uint8Array(degree);
-  r[degree - 1] = 1;
+  let result = new Uint8Array([1]);
   let root = 1;
+
   for (let i = 0; i < degree; i++) {
-    for (let j = 0; j < degree; j++) {
-      r[j] = gfMul(r[j], root);
-      if (j + 1 < degree) r[j] ^= r[j + 1];
+    const next = new Uint8Array(result.length + 1);
+    for (let j = 0; j < result.length; j++) {
+      next[j] ^= result[j];
+      next[j + 1] ^= gfMul(result[j], root);
     }
+    result = next;
     root = gfMul(root, 2);
   }
-  return r;
+
+  return result.slice(1);
 }
 
 function rsRemainder(data: Uint8Array, divisor: Uint8Array): Uint8Array {
@@ -281,17 +284,19 @@ function drawFormatBits(matrix: boolean[][], isFunc: boolean[][], ecLevel: numbe
   for (let i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >> 9) * 0x537);
   const bits = ((data << 10) | rem) ^ 0x5412;
 
-  // Around top-left finder
-  for (let i = 0; i <= 5; i++) setModule(matrix, isFunc, 8, i, ((bits >> i) & 1) === 1);
-  setModule(matrix, isFunc, 8, 7, ((bits >> 6) & 1) === 1);
-  setModule(matrix, isFunc, 8, 8, ((bits >> 7) & 1) === 1);
-  setModule(matrix, isFunc, 7, 8, ((bits >> 8) & 1) === 1);
-  for (let i = 9; i < 15; i++) setModule(matrix, isFunc, 14 - i, 8, ((bits >> i) & 1) === 1);
+  for (let i = 0; i < 15; i++) {
+    const dark = ((bits >> i) & 1) === 1;
 
-  // Around other finders
-  for (let i = 0; i < 8; i++) setModule(matrix, isFunc, size - 1 - i, 8, ((bits >> i) & 1) === 1);
-  for (let i = 8; i < 15; i++) setModule(matrix, isFunc, 8, size - 15 + i, ((bits >> i) & 1) === 1);
-  setModule(matrix, isFunc, 8, size - 8, true); // dark module
+    if (i < 6) setModule(matrix, isFunc, i, 8, dark);
+    else if (i < 8) setModule(matrix, isFunc, i + 1, 8, dark);
+    else setModule(matrix, isFunc, size - 15 + i, 8, dark);
+
+    if (i < 8) setModule(matrix, isFunc, 8, size - i - 1, dark);
+    else if (i < 9) setModule(matrix, isFunc, 8, 15 - i, dark);
+    else setModule(matrix, isFunc, 8, 15 - i - 1, dark);
+  }
+
+  setModule(matrix, isFunc, size - 8, 8, true);
 }
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4 — 2026-04-23
+
+### Fixed
+- **QR codes now encode valid payloads again** — the generator still produced unreadable symbols because the Reed-Solomon divisor polynomial was built in the wrong coefficient order and format bits were written to incorrect matrix coordinates. The package now emits decodable QR matrices again for short text, URLs, and UTF-8 payloads.
+- Added a decode-based regression test using `jsqr`, so future releases verify that generated codes actually scan instead of only checking matrix shape.
+
 ## 0.1.3 — 2026-04-23
 
 ### Fixed
