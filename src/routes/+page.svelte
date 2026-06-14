@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { QrCode, getQrMatrix, matrixToSvg, type ErrorCorrection } from '$lib/index.js';
+	import { QrCode, getQrMatrix, getQrCapacity, matrixToSvg, type ErrorCorrection } from '$lib/index.js';
 
 	// ── Playground state ────────────────────────────────
 	let data = $state('https://github.com/nomideusz/svelte-qr');
@@ -24,6 +24,11 @@
 		{ label: 'SMS', value: 'SMSTO:+48501234567:Hello!' },
 		{ label: 'Text', value: 'Hello from svelte-qr' },
 		{ label: 'Unicode', value: 'Zażółć gęślą jaźń 🎉' },
+		{
+			label: 'Long',
+			value:
+				'https://example.com/share/v2?ref=newsletter&utm_source=demo&utm_medium=qr&id=AB12-CD34-EF56-GH78&sig=9f8e7d6c5b4a3210',
+		},
 	];
 
 	const COLOR_PRESETS = [
@@ -64,8 +69,10 @@
 		svgString.length > 240 ? svgString.slice(0, 240) + '…' : svgString,
 	);
 
-	const CAPACITY: Record<ErrorCorrection, number> = { L: 2953, M: 2331, Q: 1663, H: 1273 };
-	const capacityUsage = $derived((byteLength / CAPACITY[errorCorrection]) * 100);
+	// Capacity of the version actually in use, so the meter stays meaningful for
+	// real-world payloads instead of comparing against the version-40 maximum.
+	const versionCapacity = $derived(version >= 1 ? getQrCapacity(errorCorrection, version) : 0);
+	const capacityUsage = $derived(versionCapacity > 0 ? (byteLength / versionCapacity) * 100 : 0);
 
 	const SCRIPT_OPEN = '<' + 'script>';
 	const SCRIPT_CLOSE = '</' + 'script>';
@@ -216,14 +223,16 @@ ${SCRIPT_CLOSE}
 						<span class="stat-label">Bytes</span>
 						<code class="stat-val">{byteLength}</code>
 					</div>
-					<div class="stat">
+					<div
+						class="stat"
+						title={error ? '' : `${byteLength} of ${versionCapacity} bytes in version ${version}`}
+					>
 						<span class="stat-label">Capacity</span>
-						<code class="stat-val">{capacityUsage.toFixed(0)}%</code>
+						<code class="stat-val">{error ? '—' : `${capacityUsage.toFixed(0)}%`}</code>
 						<div class="bar">
 							<div
 								class="bar-fill"
-								class:bar-fill--warn={capacityUsage > 80 && capacityUsage <= 100}
-								class:bar-fill--err={capacityUsage > 100}
+								class:bar-fill--warn={capacityUsage > 90}
 								style:width="{Math.min(capacityUsage, 100)}%"
 							></div>
 						</div>
@@ -599,9 +608,6 @@ ${SCRIPT_CLOSE}
 	}
 	.bar-fill--warn {
 		background: #fbbf24;
-	}
-	.bar-fill--err {
-		background: #ef4444;
 	}
 
 	/* ─── Snippet ──────────────────────────────────────── */

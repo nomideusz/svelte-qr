@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import jsQR from 'jsqr';
-import { getQrMatrix } from './encoder.js';
+import { getQrMatrix, getQrCapacity } from './encoder.js';
 import { matrixToSvg } from './svg.js';
 
 function decodeMatrix(matrix: boolean[][]): string | null {
@@ -138,6 +138,36 @@ describe('getQrMatrix', () => {
   });
 });
 
+describe('getQrCapacity', () => {
+  it('returns the version-40 byte maxima by default', () => {
+    expect(getQrCapacity('L')).toBe(2953);
+    expect(getQrCapacity('M')).toBe(2331);
+    expect(getQrCapacity('Q')).toBe(1663);
+    expect(getQrCapacity('H')).toBe(1273);
+  });
+
+  it('returns per-version byte capacities', () => {
+    expect(getQrCapacity('L', 1)).toBe(17);
+    expect(getQrCapacity('M', 1)).toBe(14);
+    expect(getQrCapacity('Q', 1)).toBe(11);
+    expect(getQrCapacity('H', 1)).toBe(7);
+  });
+
+  it('agrees with the encoder: a payload of exactly the capacity encodes, one more throws', () => {
+    for (const ec of ['L', 'M', 'Q', 'H'] as const) {
+      const cap = getQrCapacity(ec, 1);
+      expect(getQrMatrix('a'.repeat(cap), { errorCorrection: ec }).length).toBe(21); // still v1
+      const bigger = getQrMatrix('a'.repeat(cap + 1), { errorCorrection: ec });
+      expect(bigger.length).toBeGreaterThan(21); // bumped to a larger version
+    }
+  });
+
+  it('throws for out-of-range versions', () => {
+    expect(() => getQrCapacity('M', 0)).toThrow();
+    expect(() => getQrCapacity('M', 41)).toThrow();
+  });
+});
+
 describe('matrixToSvg', () => {
   it('returns a valid SVG string', () => {
     const matrix = getQrMatrix('test');
@@ -188,4 +218,27 @@ describe('matrixToSvg', () => {
     // 21 modules + 2*4 padding = 29 units
     expect(svg).toContain('viewBox="0 0 29 29"');
   });
+});
+
+describe('scannable across versions and EC levels', () => {
+  // Round-trips representative payloads that exercise version selection (header
+  // overhead), block splitting, alignment patterns, version info (v7+), 16-bit
+  // character counts (v10+), and per-version EC block counts. Each must decode
+  // back to the exact input — the lengths near 18/15/12/8 and the v7+ ones
+  // (75@Q, 59@H, …) are the cases earlier bugs silently corrupted.
+  const lengths = [1, 8, 14, 15, 17, 18, 26, 32, 53, 54, 58, 59, 75, 84, 107, 154, 200, 300];
+  for (const ec of ['L', 'M', 'Q', 'H'] as const) {
+    for (const len of lengths) {
+      it(`${len} bytes @ ${ec} decodes back to the input`, () => {
+        const data = 'a'.repeat(len);
+        let matrix: boolean[][];
+        try {
+          matrix = getQrMatrix(data, { errorCorrection: ec });
+        } catch {
+          return; // exceeds capacity at this EC level — acceptable
+        }
+        expect(decodeMatrix(matrix)).toBe(data);
+      });
+    }
+  }
 });

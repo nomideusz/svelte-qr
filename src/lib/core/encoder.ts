@@ -1,4 +1,4 @@
-import type { QrMatrix, QrOptions } from './types.js';
+import type { ErrorCorrection, QrMatrix, QrOptions } from './types.js';
 
 // ---------------------------------------------------------------------------
 // 1. GF(256) arithmetic (for Reed-Solomon)
@@ -71,16 +71,16 @@ const EC_CODEWORDS_PER_BLOCK: number[][] = [
   [30,28,30,30],[30,28,30,30],[30,28,30,30],[30,28,30,30],[30,28,30,30],
 ];
 
-// Number of EC blocks [version-1][L,M,Q,H]
+// Number of EC blocks [version-1][L,M,Q,H] (ISO/IEC 18004 Table 9)
 const NUM_EC_BLOCKS: number[][] = [
   [1,1,1,1],[1,1,1,1],[1,1,2,2],[1,2,2,4],[1,2,4,4],
-  [2,4,4,4],[2,4,2,4],[2,4,4,4],[2,5,5,6],[4,5,5,6],
-  [4,5,11,11],[4,8,11,11],[4,9,12,16],[4,9,11,16],[6,10,11,18],
-  [6,10,10,16],[6,11,14,20],[6,13,14,24],[7,14,14,28],[8,16,15,25],
-  [8,17,17,25],[9,17,17,34],[9,18,18,30],[10,20,21,32],[12,21,20,35],
-  [12,23,23,37],[12,25,23,40],[13,26,25,42],[14,28,25,45],[15,29,28,48],
-  [16,31,28,51],[17,33,29,54],[18,35,31,57],[19,37,31,60],[19,38,33,63],
-  [20,40,35,66],[21,43,37,70],[22,45,38,74],[24,47,40,77],[25,49,43,81],
+  [2,4,4,4],[2,4,6,5],[2,4,6,6],[2,5,8,8],[4,5,8,8],
+  [4,5,8,11],[4,8,10,11],[4,9,12,16],[4,9,16,16],[6,10,12,18],
+  [6,10,17,16],[6,11,16,19],[6,13,18,21],[7,14,21,25],[8,16,20,25],
+  [8,17,23,25],[9,17,23,34],[9,18,25,30],[10,20,27,32],[12,21,29,35],
+  [12,23,34,37],[12,25,34,40],[13,26,35,42],[14,28,38,45],[15,29,40,48],
+  [16,31,43,51],[17,33,45,54],[18,35,48,57],[19,37,51,60],[19,38,53,63],
+  [20,40,56,66],[21,43,59,70],[22,45,62,74],[24,47,65,77],[25,49,68,81],
 ];
 
 // Data capacity in codewords [version-1][L,M,Q,H]
@@ -147,8 +147,12 @@ function buildCodewords(data: Uint8Array, version: number, ecLevel: number): Uin
   for (const b of data) bs.push(b, 8);
   const dataBytes = bs.toBytesWithPadding(numDataBytes);
 
-  // Split into blocks, compute RS for each
-  const shortBlocks = numBlocks - (numDataBytes % numBlocks === 0 ? numBlocks : numDataBytes % numBlocks);
+  // Split into blocks, compute RS for each. Short blocks come first; the last
+  // (numDataBytes % numBlocks) blocks are one codeword longer. When the data
+  // divides evenly, every block is short — `% numBlocks` is already 0, so no
+  // special-casing (the previous `=== 0 ? numBlocks` made *all* blocks long
+  // and mis-split multi-block versions like v3-Q).
+  const shortBlocks = numBlocks - (numDataBytes % numBlocks);
   const shortBlockLen = Math.floor(numDataBytes / numBlocks);
   const divisor = rsDivisor(ecPerBlock);
 
@@ -191,14 +195,6 @@ function makeMatrix(size: number): boolean[][] {
 function setModule(matrix: boolean[][], isFunc: boolean[][], r: number, c: number, dark: boolean): void {
   matrix[r][c] = dark;
   isFunc[r][c] = true;
-}
-
-// fillRect is defined but used indirectly via drawFinderPattern; kept for completeness
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function fillRect(matrix: boolean[][], isFunc: boolean[][], r: number, c: number, h: number, w: number, dark: boolean): void {
-  for (let dr = 0; dr < h; dr++)
-    for (let dc = 0; dc < w; dc++)
-      setModule(matrix, isFunc, r + dr, c + dc, dark);
 }
 
 // ---------------------------------------------------------------------------
@@ -249,12 +245,22 @@ function drawFunctionPatterns(matrix: boolean[][], isFunc: boolean[][], version:
     setModule(matrix, isFunc, i, 6, i % 2 === 0);
   }
 
-  // Alignment patterns
+  // Alignment patterns — placed at every grid position except the three that
+  // coincide with the finder patterns. The previous `isFunc` guard also skipped
+  // centers landing on the timing row/column (drawn just above); for v2–v6 those
+  // happen to be the finder corners so it looked fine, but v7+ has intermediate
+  // ones like (6,22)/(22,6) — dropping them left every version ≥ 7 unscannable.
   const pos = ALIGN_PATTERN_TABLE[version - 1];
   if (pos === undefined) throw new Error(`Invalid version: ${version}`);
+  const firstPos = pos[0];
+  const lastPos = pos[pos.length - 1];
   for (const r of pos) {
     for (const c of pos) {
-      if (isFunc[r][c]) continue; // overlaps finder
+      const onFinder =
+        (r === firstPos && c === firstPos) ||
+        (r === firstPos && c === lastPos) ||
+        (r === lastPos && c === firstPos);
+      if (onFinder) continue;
       for (let dr = -2; dr <= 2; dr++) {
         for (let dc = -2; dc <= 2; dc++) {
           setModule(matrix, isFunc, r + dr, c + dc,
@@ -267,8 +273,30 @@ function drawFunctionPatterns(matrix: boolean[][], isFunc: boolean[][], version:
   // Dark module
   setModule(matrix, isFunc, 4 * version + 9, 8, true);
 
+  // Version information (required for versions 7+); scanners can't read v7+ without it
+  drawVersionInfo(matrix, isFunc, version);
+
   // Format info placeholder (will be overwritten by drawFormatBits)
   drawFormatBits(matrix, isFunc, 0, 0); // placeholder, mask=0 ecLevel=0
+}
+
+// Versions 7-40 carry an 18-bit version block (6-bit version + 12-bit BCH, gen
+// poly 0x1F25), mirrored above the bottom-left finder and left of the top-right
+// finder. Versions 1-6 encode the version implicitly via size, so they omit it.
+function drawVersionInfo(matrix: boolean[][], isFunc: boolean[][], version: number): void {
+  if (version < 7) return;
+  const size = matrix.length;
+  let rem = version;
+  for (let i = 0; i < 12; i++) rem = (rem << 1) ^ ((rem >>> 11) * 0x1f25);
+  const bits = (version << 12) | rem; // 18 bits: data << 12 | ec
+
+  for (let i = 0; i < 18; i++) {
+    const dark = ((bits >>> i) & 1) === 1;
+    const a = size - 11 + (i % 3);
+    const b = Math.floor(i / 3);
+    setModule(matrix, isFunc, b, a, dark); // top-right block
+    setModule(matrix, isFunc, a, b, dark); // bottom-left block
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -421,15 +449,34 @@ function penaltyScore(matrix: boolean[][]): number {
 // 11. Public API
 // ---------------------------------------------------------------------------
 
+const EC_INDEX: Record<ErrorCorrection, number> = { L: 0, M: 1, Q: 2, H: 3 };
+
+/**
+ * Maximum number of UTF-8 bytes encodable at the given error-correction level.
+ * Pass a `version` (1–40) for that version's byte capacity, or omit it for the
+ * absolute maximum (version 40). Handy for validating input length or driving a
+ * capacity meter before encoding.
+ */
+export function getQrCapacity(errorCorrection: ErrorCorrection = 'M', version = 40): number {
+  const dataCodewords = DATA_CODEWORDS[version - 1]?.[EC_INDEX[errorCorrection]];
+  if (dataCodewords === undefined) throw new Error(`Invalid version: ${version} (must be 1–40)`);
+  const cciBits = version <= 9 ? 8 : 16;
+  return Math.floor((dataCodewords * 8 - 4 - cciBits) / 8);
+}
+
 export function getQrMatrix(data: string, options: QrOptions = {}): QrMatrix {
-  const ecMap: Record<string, number> = { L: 0, M: 1, Q: 2, H: 3 };
-  const ecLevel = ecMap[options.errorCorrection ?? 'M'] ?? 1;
+  const ecLevel = EC_INDEX[options.errorCorrection ?? 'M'] ?? 1;
   const bytes = new TextEncoder().encode(data);
 
-  // Find minimum version
+  // Find the smallest version whose data capacity holds the byte-mode header
+  // (4-bit mode indicator + character-count indicator) plus the payload. Comparing
+  // against the raw codeword count alone ignores those ~12-20 header bits, so
+  // payloads within ~2 bytes of a version boundary would overflow and truncate.
   let version = 1;
   for (; version <= 40; version++) {
-    if ((DATA_CODEWORDS[version - 1]?.[ecLevel] ?? 0) >= bytes.length) break;
+    const cciBits = version <= 9 ? 8 : 16;
+    const capacityBits = (DATA_CODEWORDS[version - 1]?.[ecLevel] ?? 0) * 8;
+    if (capacityBits >= 4 + cciBits + bytes.length * 8) break;
   }
   if (version > 40) throw new Error(`Data too long for QR code (${bytes.length} bytes)`);
 

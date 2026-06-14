@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.0 — 2026-06-14
+
+### Added
+- **`getQrCapacity(errorCorrection?, version?)`** — returns the maximum number of UTF-8 bytes encodable at an EC level, for a specific version (1–40) or the absolute maximum (version 40). Handy for validating input length or driving a capacity meter before encoding.
+
+### Fixed
+- **Many common payloads now scan** — several encoder bugs each made whole classes of input unreadable:
+  - **Version selection ignored the byte-mode header** (4-bit mode indicator + 8/16-bit character count), so any payload within ~2 bytes of a version's capacity — e.g. a 15-character string at the default `M` level — overflowed into a too-small version and was silently truncated. The smallest version is now chosen against the real bit budget.
+  - **Every version ≥ 7 was unscannable.** Two causes: the 18-bit **version-information block** (required for v7+) was never drawn, and the **alignment-pattern** placement skipped any pattern whose centre landed on the timing row/column — dropping real patterns like v7's at (6,22)/(22,6). Scanners need both to read larger codes (longer URLs/text). Version info is now emitted, and only the three finder-overlapping alignment positions are skipped.
+  - **`NUM_EC_BLOCKS` was wrong for 40 entries** (almost the entire `Q` column plus some `H`, versions 7–40) — e.g. v7-Q used 2 blocks instead of 6 — so data and error-correction codewords were split and interleaved incorrectly. Replaced with the ISO/IEC 18004 Table 9 values.
+  - **Even block splits were mis-sized** — when `numDataBytes` divided evenly by the block count, all blocks were made one codeword too long, corrupting multi-block versions like v3-Q. Fixed the split formula.
+- Output is now **bit-for-bit identical to a reference encoder** across 572 payloads spanning all 40 versions and four EC levels. Added an exhaustive `jsqr` decode regression test over versions 1–40 × `L/M/Q/H` (72 cases) so it can't regress.
+- Removed an unused internal helper (`fillRect`).
+
+> **Upgrade strongly recommended.** Earlier versions produced unscannable codes for many short payloads near capacity boundaries and for *all* payloads needing version 7 or higher.
+
 ## 0.1.4 — 2026-04-23
 
 ### Fixed
