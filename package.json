@@ -59,5 +59,6 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/nomideusz/svelte-qr"
-  }
+  },
+  "homepage": "https://svelte-qr.vercel.app/"
 }
