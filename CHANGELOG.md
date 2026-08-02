@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0 — 2026-08-02
+
+### Added
+- **`matrixToRaster(matrix, { scale, padding })`** — rasterizes a QR matrix to a single-channel greyscale bitmap, the pixel-output sibling of `matrixToSvg`. Returns `{ data, width, height, channels }`, the shape raw-image encoders take, so a PNG is a one-liner with whatever encoder you already have. The package stays dependency-free: it stops at the raster rather than pulling in an image library. Both apps in the source monorepo had hand-rolled the same quiet-zone and module-scaling loop before this.
+
 ## 0.2.2 — 2026-06-29
 
 ### Security
