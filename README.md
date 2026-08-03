@@ -1,5 +1,7 @@
 # @nomideusz/svelte-qr
 
+[![npm](https://badgen.net/npm/v/@nomideusz/svelte-qr)](https://www.npmjs.com/package/@nomideusz/svelte-qr) [![license](https://badgen.net/badge/license/MIT/blue)](./LICENSE)
+
 Zero-dependency QR code generation for **Svelte 5**. A pure-TypeScript encoder (Reed-Solomon error correction, all 40 versions, byte-mode UTF-8) plus a drop-in `<QrCode />` component that emits a single SVG. No canvas, no image decoding, no runtime dependencies.
 
 **[Live demo → svelte-qr.vercel.app](https://svelte-qr.vercel.app/)**
