@@ -1,6 +1,9 @@
 # Used only in github.com/nomideusz/svelte-qr (not the asini monorepo).
-# pnpm 10+ blocks lifecycle scripts until approved; esbuild needs its postinstall.
+# pnpm 10+ blocks lifecycle scripts until approved; esbuild needs its
+# postinstall, and sharp (optional peer for /png, devDep for tests) downloads
+# its native binaries in one.
 packages:
   - '.'
 allowBuilds:
   esbuild: true
+  sharp: true

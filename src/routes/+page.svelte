@@ -90,6 +90,18 @@ ${SCRIPT_CLOSE}
   background="${background}"
 />`,
 	);
+
+	// Server-only — qrPng imports sharp, so it can't run in this browser demo.
+	const pngSnippet = $derived(
+		`// server-only (Node) — needs the optional peer: pnpm add sharp
+import { qrPng } from '@nomideusz/svelte-qr/png';
+
+const png = await qrPng(${JSON.stringify(data.length > 60 ? data.slice(0, 57) + '…' : data)}, {
+  scale: 8,             // px per QR module (default 8)
+  errorCorrection: '${errorCorrection}',
+  padding: ${padding},
+}); // Promise<Buffer> — white background, black modules`,
+	);
 </script>
 
 <svelte:head>
@@ -265,6 +277,24 @@ ${SCRIPT_CLOSE}
 		</header>
 
 		<pre class="snippet">{usageSnippet}</pre>
+	</section>
+
+	<!-- ═══ Server-side PNG ════════════════════════════════ -->
+	<section class="card">
+		<header class="card-hd">
+			<h2><code>qrPng()</code> — PNG on the server</h2>
+			<span class="hd-meta">server-only — import from <code>@nomideusz/svelte-qr/png</code></span>
+		</header>
+
+		<pre class="snippet">{pngSnippet}</pre>
+
+		<p class="note">
+			<code>sharp</code> is an <strong>optional</strong> peer dependency imported only by the
+			<code>/png</code> subpath — the main entry stays zero-dependency and browser-safe, so installing
+			sharp is only needed if you use <code>/png</code>. Prefer your own image encoder?
+			<code>matrixToRaster()</code> (main entry) returns the raw greyscale bitmap
+			<code>{'{ data, width, height, channels }'}</code> that raw-image encoders take.
+		</p>
 	</section>
 
 	<section class="cta">

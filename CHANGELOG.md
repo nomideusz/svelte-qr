@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0 — 2026-08-09
+
+### Added
+- **`@nomideusz/svelte-qr/png`** — `qrPng(data, { scale?, padding?, errorCorrection? }): Promise<Buffer>`. The sharp wrapper both source apps had pasted verbatim from `matrixToRaster`'s doc comment (byte-identical 14-line files, now deleted). `sharp` is an **optional peer dependency** imported only by this subpath — the main entry keeps its zero-dependency, browser-safe identity, and consumers who only render SVG/components install nothing new. Round-trip tested (encode → sharp decode → jsQR).
+
 ## 0.3.0 — 2026-08-02
 
 ### Added

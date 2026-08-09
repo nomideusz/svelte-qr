@@ -2,7 +2,7 @@
 
 [![npm](https://badgen.net/npm/v/@nomideusz/svelte-qr)](https://www.npmjs.com/package/@nomideusz/svelte-qr) [![license](https://badgen.net/badge/license/MIT/blue)](https://github.com/nomideusz/svelte-qr/blob/main/LICENSE)
 
-Zero-dependency QR code generation for **Svelte 5**. A pure-TypeScript encoder (Reed-Solomon error correction, all 40 versions, byte-mode UTF-8) plus a drop-in `<QrCode />` component that emits a single SVG. No canvas, no image decoding, no runtime dependencies.
+Zero-dependency QR code generation for **Svelte 5**. A pure-TypeScript encoder (Reed-Solomon error correction, all 40 versions, byte-mode UTF-8) plus a drop-in `<QrCode />` component that emits a single SVG. No canvas, no image decoding, no runtime dependencies. Need pixels instead of vectors? `matrixToRaster()` returns a raw bitmap, and the optional server-side `/png` subpath turns one into a PNG `Buffer`.
 
 **[Live demo → svelte-qr.vercel.app](https://svelte-qr.vercel.app/)**
 
@@ -12,7 +12,7 @@ Zero-dependency QR code generation for **Svelte 5**. A pure-TypeScript encoder (
 pnpm add @nomideusz/svelte-qr
 ```
 
-> Requires Svelte 5 (`^5.0.0`). Zero runtime dependencies.
+> Requires Svelte 5 (`^5.0.0`). Zero runtime dependencies — `sharp` is an **optional** peer needed only for the server-side `/png` subpath.
 
 ## Quick start
 
@@ -88,6 +88,55 @@ interface QrOptions {
   background?: string;
   size?: number;
 }
+```
+
+## Raster output
+
+`matrixToRaster()` is the pixel-output sibling of `matrixToSvg()` — it rasterizes a matrix to a single-channel greyscale bitmap (`0` = dark module, `255` = light) with the quiet zone already applied:
+
+```ts
+import { getQrMatrix, matrixToRaster } from '@nomideusz/svelte-qr';
+
+const raster = matrixToRaster(getQrMatrix('https://example.com'), {
+  scale: 8,   // pixels per QR module (default 8)
+  padding: 4, // quiet zone in modules (default 4; the spec requires 4)
+});
+// { data: Uint8Array, width: number, height: number, channels: 1 }
+```
+
+The return shape (`QrRaster`) is exactly what raw-image encoders take, so the package stays zero-dependency — hand it to whatever encoder you already have:
+
+```ts
+await sharp(raster.data, {
+  raw: { width: raster.width, height: raster.height, channels: raster.channels },
+}).png().toBuffer();
+```
+
+Types exported from the main entry: `RasterOptions`, `QrRaster`.
+
+## PNG output (server-side)
+
+> **Server-only.** Requires `sharp`, an **optional** peer dependency: `pnpm add sharp`. The main entry never imports it — installing sharp is only needed if you import from `/png`. Consumers who only render SVG or the component install nothing.
+
+For the common case — a PNG `Buffer` for an email attachment or an API response — the `@nomideusz/svelte-qr/png` subpath wraps `matrixToRaster` + sharp:
+
+```ts
+import { qrPng } from '@nomideusz/svelte-qr/png';
+
+const png = await qrPng('https://example.com/verify/abc123', {
+  scale: 8,             // pixels per QR module (default 8)
+  padding: 4,           // quiet zone in modules
+  errorCorrection: 'M', // default 'M'
+}); // Promise<Buffer> — white background, black modules
+```
+
+```ts
+interface QrPngOptions {
+  scale?: number;
+  padding?: number;
+  errorCorrection?: ErrorCorrection;
+}
+function qrPng(data: string, options?: QrPngOptions): Promise<Buffer>;
 ```
 
 ## Choosing an error correction level

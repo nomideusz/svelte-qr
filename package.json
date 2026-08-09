@@ -1,7 +1,7 @@
 {
   "name": "@nomideusz/svelte-qr",
-  "version": "0.3.0",
-  "description": "Zero-dependency QR code generation for Svelte 5 — pure TypeScript encoder, SVG output.",
+  "version": "0.4.0",
+  "description": "Zero-dependency QR code generation for Svelte 5 — pure TypeScript encoder, SVG output, optional PNG subpath.",
   "type": "module",
   "sideEffects": false,
   "license": "MIT",
@@ -12,6 +12,10 @@
       "types": "./dist/index.d.ts",
       "svelte": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./png": {
+      "types": "./dist/png/index.d.ts",
+      "default": "./dist/png/index.js"
     }
   },
   "files": [
@@ -33,9 +37,17 @@
     "test:watch": "vitest"
   },
   "peerDependencies": {
-    "svelte": "^5.0.0"
+    "svelte": "^5.0.0",
+    "sharp": "^0.34.0"
+  },
+  "peerDependenciesMeta": {
+    "sharp": {
+      "optional": true
+    }
   },
   "devDependencies": {
+    "@types/node": "^25.9.4",
+    "sharp": "^0.34.5",
     "@sveltejs/adapter-auto": "^7.0.1",
     "@sveltejs/kit": "^2.69.1",
     "@sveltejs/package": "^2.5.8",
