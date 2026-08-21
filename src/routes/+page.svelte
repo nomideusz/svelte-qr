@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { QrCode, getQrMatrix, getQrCapacity, matrixToSvg, type ErrorCorrection } from '#lib/index.js';
+	import { QrCode, getQrMatrix, getQrCapacity, matrixToSvg, downloadQrPng, type ErrorCorrection } from '#lib/index.js';
 
 	// ── Playground state ────────────────────────────────
 	let data = $state('https://github.com/nomideusz/svelte-qr');
@@ -199,8 +199,8 @@ const png = await qrPng(${JSON.stringify(data.length > 60 ? data.slice(0, 57) + 
 								foreground = p.fg;
 								background = p.bg;
 							}}
-							style:--fg={p.fg}
-							style:--bg={p.bg}
+							style:--swatch-fg={p.fg}
+							style:--swatch-bg={p.bg}
 							title={p.label}
 						>
 							<span class="color-preset-swatch"></span>
@@ -218,9 +218,20 @@ const png = await qrPng(${JSON.stringify(data.length > 60 ? data.slice(0, 57) + 
 							<span>Payload exceeds the max QR capacity at EC level {errorCorrection}. Lower the EC level or shorten the data.</span>
 						</div>
 					{:else}
-						<QrCode {data} {size} {errorCorrection} {padding} {foreground} {background} />
+						<!-- 1.0: the preview itself is the enlarge/download demo -->
+						<QrCode {data} {size} {errorCorrection} {padding} {foreground} {background} enlargeable />
 					{/if}
 				</div>
+				{#if !error}
+					<p class="preview-hint">
+						Tap the code to enlarge it (1.0's <code>enlargeable</code>) — or
+						<button
+							class="link-btn"
+							onclick={() => downloadQrPng(data, 'svelte-qr-demo', { errorCorrection, padding, foreground, background })}
+						>download it as a ~1024&nbsp;px PNG</button>
+						(<code>downloadQrPng</code>, rendered client-side, zero dependencies).
+					</p>
+				{/if}
 
 				<div class="stats">
 					<div class="stat">
@@ -561,7 +572,9 @@ const png = await qrPng(${JSON.stringify(data.length > 60 ? data.slice(0, 57) + 
 		height: 18px;
 		border-radius: 50%;
 		border: 1px solid rgba(0, 0, 0, 0.1);
-		background: linear-gradient(135deg, var(--bg) 50%, var(--fg) 50%);
+		/* Dedicated vars: --bg/--fg are the page theme's tokens, and the
+		   collision painted every swatch with the theme background. */
+		background: linear-gradient(135deg, var(--swatch-bg) 50%, var(--swatch-fg) 50%);
 	}
 
 	/* ─── Preview ──────────────────────────────────────── */
@@ -678,5 +691,20 @@ const png = await qrPng(${JSON.stringify(data.length > 60 ? data.slice(0, 57) + 
 	}
 	.cta a:hover {
 		border-bottom-color: var(--accent);
+	}
+	.preview-hint {
+		margin: 0;
+		font-size: 12px;
+		color: var(--text-2);
+		line-height: 1.5;
+	}
+	.link-btn {
+		padding: 0;
+		border: 0;
+		background: none;
+		font: inherit;
+		color: var(--accent);
+		cursor: pointer;
+		text-decoration: underline;
 	}
 </style>
