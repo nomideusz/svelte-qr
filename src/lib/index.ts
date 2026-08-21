@@ -2,4 +2,5 @@ export type { QrOptions, QrMatrix, ErrorCorrection } from './core/types.js';
 export { getQrMatrix, getQrCapacity } from './core/encoder.js';
 export { matrixToSvg } from './core/svg.js';
 export { matrixToRaster, type RasterOptions, type QrRaster } from './core/raster.js';
+export { qrPngBlob, downloadQrPng } from './core/download.js';
 export { default as QrCode } from './components/QrCode.svelte';

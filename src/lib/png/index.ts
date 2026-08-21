@@ -1,3 +1,4 @@
+/// <reference types="node" preserve="true" />
 /**
  * PNG output — `@nomideusz/svelte-qr/png`.
  *

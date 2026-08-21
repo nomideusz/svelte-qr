@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.0.0
+
+### Major Changes
+
+- 6bd4ac9: 1.0.0 — the API is now a promise: anything that breaks a consumer costs a
+  major. Chosen as the workspace's first 1.0 on evidence: least churn, zero
+  dependencies, zero breaking changes in its history, tests on every code path.
+  
+  And the 1.0 ships with the two affordances real screens kept needing:
+  
+  - `QrCode` gains `enlargeable` — tap opens the code near-fullscreen in a
+    native `<dialog>` (an on-page 160 px QR is a coin flip for a phone camera;
+    the same code at 80vmin is not) — and `downloadable`, a PNG download
+    rendered client-side at ~1024 px so the saved file scans from another
+    screen. Both default off; existing consumers are byte-identical. Labels
+    (`enlargeLabel`, `downloadLabel`, `closeLabel`) are props, so i18n stays
+    the app's job.
+  - New exports `qrPngBlob(data, options?, targetPx?)` and
+    `downloadQrPng(data, filename?, options?)` — the browser siblings of the
+    server-only `./png` subpath, canvas-based, still zero dependencies.
+
 ## 0.4.0 — 2026-08-09
 
 ### Added

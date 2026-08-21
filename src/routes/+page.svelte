@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { QrCode, getQrMatrix, getQrCapacity, matrixToSvg, type ErrorCorrection } from '$lib/index.js';
+	import { QrCode, getQrMatrix, getQrCapacity, matrixToSvg, type ErrorCorrection } from '#lib/index.js';
 
 	// ── Playground state ────────────────────────────────
 	let data = $state('https://github.com/nomideusz/svelte-qr');
